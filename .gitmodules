@@ -33,4 +33,4 @@
 	url = https://github.com/ROBOTIS-GIT/dynamixelSDK.git
 [submodule "tb3_man"]
 	path = tb3_man
-	url = https://github.com/ROBOTIS-GIT/turtlebot3_manipulation
+	url = https://github.com/ROBTOIS-GIT/turtlebot3_manipulation
