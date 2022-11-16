@@ -28,3 +28,9 @@
 [submodule "turtlebot3_msgs"]
 	path = turtlebot3_msgs
 	url = ./ROBOTIS-GIT/turtlebot3_msgs/
+[submodule "dynamixelSDK"]
+	path = dynamixelSDK
+	url = https://github.com/ROBOTIS-GIT/dynamixelSDK.git
+[submodule "tb3_man"]
+	path = tb3_man
+	url = https://github.com/ROBOTIS-GIT/turtlebot3_manipulation
