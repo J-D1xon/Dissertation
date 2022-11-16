@@ -1,0 +1,30 @@
+[submodule "DynamixelSDK"]
+	path = DynamixelSDK
+	url = ./ROBOTIS-GIT/DynamixelSDK/
+[submodule "dynamixel-workbench"]
+	path = dynamixel-workbench
+	url = ./ROBOTIS-GIT/dynamixel-workbench/
+[submodule "open_manipulator"]
+	path = open_manipulator
+	url = ./ROBOTIS-GIT/open_manipulator/
+[submodule "open_manipulator_msgs"]
+	path = open_manipulator_msgs
+	url = ./ROBOTIS-GIT/open_manipulator_msgs/
+[submodule "open_manipulator_dependencies"]
+	path = open_manipulator_dependencies
+	url = ./ROBOTIS-GIT/open_manipulator_dependencies/
+[submodule "open_manipulator_simulations"]
+	path = open_manipulator_simulations
+	url = ./ROBOTIS-GIT/open_manipulator_simulations/
+[submodule "turtlebot3"]
+	path = turtlebot3
+	url = ./ROBOTIS-GIT/turtlebot3/
+[submodule "turtlebot3_manipulation"]
+	path = turtlebot3_manipulation
+	url = ./ROBOTIS-GIT/turtlebot3_manipulation/
+[submodule "turtlebot3_manipulation_simulations"]
+	path = turtlebot3_manipulation_simulations
+	url = ./ROBOTIS-GIT/turtlebot3_manipulation_simulations/
+[submodule "turtlebot3_msgs"]
+	path = turtlebot3_msgs
+	url = ./ROBOTIS-GIT/turtlebot3_msgs/
