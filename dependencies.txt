@@ -1,0 +1,3 @@
+sudo apt install ros-noetic-gazebo* ros-noetic-ros-control* ros-noetic-control* \
+ros-noetic-moveit* ros-noetic-industrial-core ros-noetic-dynamixel-sdk \
+ros-noetic-dynamixel-workbench* ros-noetic-robotis-manipulator
