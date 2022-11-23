@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import sys
 import copy
 import rospy
@@ -11,8 +11,7 @@ from math import pi, tau, dist, fabs, cos
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 
-moveit_commander.roscpp_initialize(sys.argv)
-rospy.init_node("first_demo", anonymous=True)
+
 
 robot = moveit_commander.RobotCommander()
 
@@ -96,15 +95,23 @@ def moveHome():
 def moveInit():
     moveArm(0.194,0.0,0.304)
 
-moveHome()
-rospy.sleep(0.1)
-moveInit()
-rospy.sleep(0.1)
-moveHome()
-rospy.sleep(0.1)
-moveInit()
-# moveArm(0.1,0,0.3)
-# moveArm(0.02,0,0.3)
+def shutDownCallback():
+    moveArm(0.046, 0.0, 0.2)
 
+def main():
+    moveit_commander.roscpp_initialize(sys.argv)
+    rospy.init_node("first_demo", anonymous=True)
+    rospy.on_shutdown(shutDownCallback)
+
+    while not rospy.is_shutdown():
+        moveHome()
+        rospy.sleep(0.5)
+        moveInit()
+        rospy.sleep(0.5)
     
+    rospy.spin()
 
+
+
+if __name__ == '__main__':
+    main()
