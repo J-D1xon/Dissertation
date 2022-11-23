@@ -1,31 +1,31 @@
 [submodule "DynamixelSDK"]
 	path = DynamixelSDK
-	url = ./ROBOTIS-GIT/DynamixelSDK/
+	url = https://github.com/ROBOTIS-GIT/DynamixelSDK.git
 [submodule "dynamixel-workbench"]
 	path = dynamixel-workbench
-	url = ./ROBOTIS-GIT/dynamixel-workbench/
+	url = https://github.com/ROBOTIS-GIT/dynamixel-workbench.git
 [submodule "open_manipulator"]
 	path = open_manipulator
-	url = ./ROBOTIS-GIT/open_manipulator/
+	url = https://github.com/ROBOTIS-GIT/open_manipulator.git
 [submodule "open_manipulator_msgs"]
 	path = open_manipulator_msgs
-	url = ./ROBOTIS-GIT/open_manipulator_msgs/
+	url = https://github.com/ROBOTIS-GIT/open_manipulator_msgs.git
 [submodule "open_manipulator_dependencies"]
 	path = open_manipulator_dependencies
-	url = ./ROBOTIS-GIT/open_manipulator_dependencies/
+	url = https://github.com/ROBOTIS-GIT/open_manipulator_dependencies.git
 [submodule "open_manipulator_simulations"]
 	path = open_manipulator_simulations
-	url = ./ROBOTIS-GIT/open_manipulator_simulations/
+	url = https://github.com/ROBOTIS-GIT/open_manipulator_simulations.git
 [submodule "turtlebot3"]
 	path = turtlebot3
-	url = ./ROBOTIS-GIT/turtlebot3/
+	url = https://github.com/ROBOTIS-GIT/turtlebot3.git
 [submodule "turtlebot3_manipulation"]
 	path = turtlebot3_manipulation
-	url = https://github.com/ROBOTIS-GIT/turtlebot3_manipulation/
+	url = https://github.com/ROBOTIS-GIT/turtlebot3_manipulation.git
 [submodule "turtlebot3_manipulation_simulations"]
 	path = turtlebot3_manipulation_simulations
-	url = ./ROBOTIS-GIT/turtlebot3_manipulation_simulations/
+	url = https://github.com/ROBOTIS-GIT/turtlebot3_manipulation_simulations.git
 [submodule "turtlebot3_msgs"]
 	path = turtlebot3_msgs
-	url = ./ROBOTIS-GIT/turtlebot3_msgs/
+	url = https://github.com/ROBOTIS-GIT/turtlebot3_msgs.git
 
