@@ -24,3 +24,26 @@ display_trajectory_publisher = rospy.Publisher(
     moveit_msgs.msg.DisplayTrajectory,
     queue_size = 20
 )
+
+def resetArm():
+    print("Resetting arm")
+
+def place():
+    print("Placing Object")
+
+def shutDownCallback():
+    print("shutting down...")
+
+def main():
+    moveit_commander.roscpp_initialize(sys.argv)
+    rospy.init_node("pick_and_place", anonymous=True)
+    rospy.on_shutdown(shutDownCallback)
+
+    while not rospy.is_shutdown():
+        print("running pick and place")
+        rospy.sleep(1)
+
+    rospy.spin()
+
+if __name__ == "__main__":
+    main()

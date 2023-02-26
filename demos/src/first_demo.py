@@ -13,19 +13,7 @@ from moveit_commander.conversions import pose_to_list
 
 
 
-robot = moveit_commander.RobotCommander()
-
-scene = moveit_commander.PlanningSceneInterface()
-
-group_name = "arm"
-
-move_group = moveit_commander.MoveGroupCommander(group_name)
-
-display_trajectory_publisher = rospy.Publisher(
-    "/move_group/display_planned_path",
-    moveit_msgs.msg.DisplayTrajectory,
-    queue_size = 20
-)
+cd 
 
 # =======================================================
 # GETTING BASIC INFORMATION
