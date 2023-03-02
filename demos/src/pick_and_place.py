@@ -21,79 +21,139 @@ robot = moveit_commander.RobotCommander()
 
 scene = moveit_commander.PlanningSceneInterface()
 
-group_name = "arm"
+arm_group = moveit_commander.MoveGroupCommander("arm")
+gripper_group = moveit_commander.MoveGroupCommander("gripper")
 
-move_group = moveit_commander.MoveGroupCommander(group_name)
+joint_goal = arm_group.get_current_joint_values()
 
-joint_goal = move_group.get_current_joint_values()
+# Threshold variable - used to reduce noise in joint angle readings
+eps = 0.005
 
-##### SET POSE SETUP #####
+##### POSE SETUP #####
 
 initPose = [0.000, 0.000,  0.000,  0.000]
 pickPose = [0.000, 1.550, -0.300, -1.250]
+placePoseL = [0.800, 1.550, -0.500, -1.050]
+placePoseR = [-0.800, 1.550, -0.500, -1.050]
 movePose = [0.000, 1.000, -0.300, -1.000]
 
+# used to visualise pahs with rviz
 display_trajectory_publisher = rospy.Publisher(
-    "/move_group/display_planned_path",
+    "arm_group/display_planned_path",
     moveit_msgs.msg.DisplayTrajectory,
     queue_size = 20
 )
 
-# function that sends a joint goal to the move group and executes a move
-def moveToSetPose(pose):
-    print
+# method that sends a joint goal to the move_group and executes a move if not already at the goal
+def moveToPose(pose):
+    # store the current joint angles
+    joint_angles = arm_group.get_current_joint_values() 
 
-    # Move arm to a given pose
-    for i in range(len(pose)):
-        joint_goal[i] = pose[i]
+    # used to keep track of joints that don't need to move
+    sameJoints = 0
 
-    move_group.go(joint_goal, wait=True)
-    move_group.stop()
+    for i in range(len(joint_angles)):
+        # recognises a joint is already at the pose angle if its within a threshold 'eps' of the target pose (0.005 rad)
+        if joint_angles[i]-eps < pose[i] and joint_angles[i]+eps > pose[i]:
+            sameJoints += 1
 
+    # if any of the joints require movement then plan a move, else do nothing
+    if sameJoints < len(joint_angles):
+        print("moving to new pose...")
+
+        arm_group.go(pose, wait=True)
+        arm_group.stop()
+    else:
+        print("already at the given pose")
+
+# method to move the arm to pickPose and close the gripper
 def pickObject():
     print("Picking up object")
-    # TODO: close gripper
 
-    moveToSetPose(movePose)
+    closeGripper()
 
-def placeObject():
-    print("Placing Object")
-    moveToSetPose(pickPose)
-    # TODO: open gripper
-    control_gripper(-0.01)
+    moveToPose(movePose)
 
-def control_gripper(joint_value):
-    rospy.wait_for_service("/open_manipulator/goal_tool_control")
-    set_joint_position = rospy.ServiceProxy("/open_manipulator/goal_tool_control", SetJointPosition)
-    msg = open_manipulator_msgs.msg.JointPosition()
-    msg.joint_name.append("gripper")
-    msg.position.append(joint_value)
-    resp1 = set_joint_position("arm", msg, 5)
-    rospy.sleep(1.5)
+# method to move the arm to placePoseL  and open the gripper
+def placeObject(direction):
 
+    if direction == "left":
+        print("Placing object on the " + direction)
+        moveToPose(placePoseL)
+
+    elif direction == "right":
+        print("Placing object on the " + direction)
+        moveToPose(placePoseR)
+
+    else:
+        print(direction + " invalid. Must give direction: 'left'/'right'")
+        return
+
+    openGripper()
+
+# method to move the arm to movePose - default state
+def resetArm():
+    moveToPose(movePose)
+
+def positionArm():
+    moveToPose(pickPose)
+
+# method to move the gripper arms to the closed position
+def closeGripper():
+    gripper_group.go([-0.01, -0.01], wait=True)
+    gripper_group.stop()
+
+# method to move the gripper arms to the open position
+def openGripper():
+    gripper_group.go([0.01, 0.01], wait=True)
+    gripper_group.stop()
+
+# shutdown callback returns the arm to the picking pose before ending
+# so that the arm is as close to the ground as possible, preventing damage to the robot or the arm 
+# should the arm experience a loss of torque and fall.
 def shutDownCallback():
-    print("\nMoving to initial position")
-    moveToSetPose(initPose)
+    moveToPose(pickPose)
     print("shutting down...")
 
 def main():
+    # initilising the moveit_commander and ROS node, assigns the shutdown callback
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node("pick_and_place", anonymous=True)
     rospy.on_shutdown(shutDownCallback)
+
+    # defines the rate the loop will execute
+    rate = rospy.Rate(100) #Hz
+    
+    # used to keep track of the number of loops
     counter = 0
 
-    # set initial state to the init pose
-    moveToSetPose(initPose)
-
-    placeObject()
+    # set initial state to movePose
+    resetArm()
 
     ### main loop ###
     while not rospy.is_shutdown():
 
-        if counter % 100 == 0:
-            print("TODO")
-        rospy.sleep(0.01)
+        if counter % 1000 == 0:
+            positionArm()
 
+        if counter % 1000 == 200:
+            pickObject()
+
+        if counter % 1000 == 400:
+            if counter % 2000 < 1000:
+                placeObject("left")
+            else:
+                placeObject("right")
+        
+        if counter % 1000 == 600:
+            resetArm()
+        
+        counter += 1
+
+        rate.sleep()
+
+    # prevents the python file from ending once this point is reached 
+    #(redundant since its below an infinite loop but still good practise to include)
     rospy.spin()
 
 if __name__ == "__main__":
