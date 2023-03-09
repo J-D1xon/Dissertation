@@ -1,8 +1,6 @@
 #!/usr/bin/python3
 
 ##### IMPORTS #####
-import sys
-import copy
 import rospy
 import moveit_commander
 import moveit_msgs.msg
@@ -95,6 +93,7 @@ def placeObject(direction):
 def resetArm():
     moveToPose(movePose)
 
+# method to move the arm to pickPose - resets the arm ready to grasp an object
 def positionArm():
     moveToPose(pickPose)
 
@@ -112,7 +111,7 @@ def openGripper():
 # so that the arm is as close to the ground as possible, preventing damage to the robot or the arm 
 # should the arm experience a loss of torque and fall.
 def shutDownCallback():
-    moveToPose(pickPose)
+    positionArm()
     print("shutting down...")
 
 def main():
