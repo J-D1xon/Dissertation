@@ -29,11 +29,11 @@ eps = 0.005
 
 # Puts the robot into joint space or task space planning 
 # (must be set to False if working with a differently configured robot)
-JOINT_PLANNING = False
+JOINT_PLANNING = True
 
 ##### JOINT SPACE POSE SETUP #####
 
-jointPickPose = [0.000, 1.550, -0.300, -1.250]
+jointPickPose = [0.000, 1.600, -0.500, -0.600]
 jointPlacePoseL = [0.800, 1.550, -0.500, -1.050]
 jointPlacePoseR = [-0.800, 1.550, -0.500, -1.050]
 jointMovePose = [0.000, 0.600, 0.400, -1.000]
