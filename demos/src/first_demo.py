@@ -11,9 +11,11 @@ from math import pi, tau, dist, fabs, cos
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 
+robot = moveit_commander.RobotCommander()
 
+scene = moveit_commander.PlanningSceneInterface()
 
-cd 
+move_group = moveit_commander.MoveGroupCommander("arm")
 
 # =======================================================
 # GETTING BASIC INFORMATION

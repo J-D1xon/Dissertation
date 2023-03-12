@@ -27,13 +27,22 @@ joint_goal = arm_group.get_current_joint_values()
 # Threshold variable - used to reduce noise in joint angle readings
 eps = 0.005
 
-##### POSE SETUP #####
+# Puts the robot into joint space or task space planning 
+# (must be set to False if working with a differently configured robot)
+JOINT_PLANNING = False
 
-initPose = [0.000, 0.000,  0.000,  0.000]
-pickPose = [0.000, 1.550, -0.300, -1.250]
-placePoseL = [0.800, 1.550, -0.500, -1.050]
-placePoseR = [-0.800, 1.550, -0.500, -1.050]
-movePose = [0.000, 1.000, -0.300, -1.000]
+##### JOINT SPACE POSE SETUP #####
+
+jointPickPose = [0.000, 1.550, -0.300, -1.250]
+jointPlacePoseL = [0.800, 1.550, -0.500, -1.050]
+jointPlacePoseR = [-0.800, 1.550, -0.500, -1.050]
+jointMovePose = [0.000, 0.600, 0.400, -1.000]
+
+##### TASK SPACE POSE SETUP #####
+
+taskTuckPose = [0.080, 0.000, 0.350, 0.000]
+taskPickPose = [0.300, 0.000, 0.040, 0.000]
+taskMovePose = [0.300, 0.000, 0.200, 0.000]
 
 # used to visualise pahs with rviz
 display_trajectory_publisher = rospy.Publisher(
@@ -42,8 +51,8 @@ display_trajectory_publisher = rospy.Publisher(
     queue_size = 20
 )
 
-# method that sends a joint goal to the move_group and executes a move if not already at the goal
-def moveToPose(pose):
+# method that sends a joint goal to the move_group and executes a planned move if not already at the goal
+def moveToJointPose(pose):
     # store the current joint angles
     joint_angles = arm_group.get_current_joint_values() 
 
@@ -64,24 +73,59 @@ def moveToPose(pose):
     else:
         print("already at the given pose")
 
-# method to move the arm to pickPose and close the gripper
+# method that sends a pose goal to the move group and executes a planned move
+def moveToTaskPose(pose):
+    arm_group.clear_pose_targets()
+    # gets the current task space position (x,y,z,w) - w = orientation of the end effector
+    pose_goal = geometry_msgs.msg.Pose()
+
+    # updates the pose_goal to the given pose 
+    print(f"{pose[0]}, {pose[1]}, {pose[2]}")
+    pose_goal.position.x = pose[0]
+    pose_goal.position.y = pose[1]
+    pose_goal.position.z = pose[2]
+
+    # only adds the orientation to the plan if specified by the parameter
+    if len(pose) > 3:
+        pose_goal.orientation.w = pose[3]
+
+    # updates the arm_group pose target
+    arm_group.set_pose_target(pose_goal)
+
+    # executes the planned move
+    success = arm_group.go(wait=True)
+
+    # stop() ensures that there is no residual movement and 
+    # clear prevents the move group from unnecessarily planning to the current pose
+    arm_group.stop()
+    arm_group.clear_pose_targets()
+    rospy.sleep(0.75)
+
+
+# method to move the arm to jointPickPose and close the gripper
 def pickObject():
     print("Picking up object")
 
     closeGripper()
 
-    moveToPose(movePose)
+    if JOINT_PLANNING:
+        moveToJointPose(jointMovePose)
+    else:
+        moveToTaskPose(taskMovePose)
 
-# method to move the arm to placePoseL  and open the gripper
+
+# method to move the arm to jointPlacePoseL  and open the gripper
 def placeObject(direction):
 
     if direction == "left":
         print("Placing object on the " + direction)
-        moveToPose(placePoseL)
+        if JOINT_PLANNING:
+            moveToJointPose(jointPlacePoseL)
 
     elif direction == "right":
         print("Placing object on the " + direction)
-        moveToPose(placePoseR)
+        if JOINT_PLANNING:
+            moveToJointPose(jointPlacePoseR)
 
     else:
         print(direction + " invalid. Must give direction: 'left'/'right'")
@@ -89,13 +133,21 @@ def placeObject(direction):
 
     openGripper()
 
-# method to move the arm to movePose - default state
+# method to move the arm to jointMovePose - default state
 def resetArm():
-    moveToPose(movePose)
+    if JOINT_PLANNING:
+        moveToJointPose(jointMovePose)
+    else:
+        moveToTaskPose(taskTuckPose)
 
-# method to move the arm to pickPose - resets the arm ready to grasp an object
+    
+
+# method to move the arm to the position where ready to grasp an object
 def positionArm():
-    moveToPose(pickPose)
+    if JOINT_PLANNING:
+        moveToJointPose(jointPickPose)
+    else:
+        moveToTaskPose(taskPickPose)
 
 # method to move the gripper arms to the closed position
 def closeGripper():
@@ -126,7 +178,7 @@ def main():
     # used to keep track of the number of loops
     counter = 0
 
-    # set initial state to movePose
+    # set initial state to jointMovePose
     resetArm()
 
     ### main loop ###
