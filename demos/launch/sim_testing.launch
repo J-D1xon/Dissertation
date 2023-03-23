@@ -1,7 +1,7 @@
 <launch>
     <env name="TURTLEBOT3_MODEL" value="waffle" />
     <include file="$(find turtlebot3_manipulation_gazebo)/launch/turtlebot3_manipulation_gazebo.launch" >
-        
+        <arg name="model" value="waffle"/>
     </include>
     <include file="$(find turtlebot3_manipulation_moveit_config)/launch/move_group.launch"> </include>
     <include file="$(find turtlebot3_manipulation_gui)/launch/turtlebot3_manipulation_gui.launch"> </include>

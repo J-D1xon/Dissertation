@@ -33,10 +33,13 @@ JOINT_PLANNING = True
 
 ##### JOINT SPACE POSE SETUP #####
 
-jointPickPose = [0.000, 1.600, -0.500, -0.600]
-jointPlacePoseL = [0.800, 1.550, -0.500, -1.050]
-jointPlacePoseR = [-0.800, 1.550, -0.500, -1.050]
-jointMovePose = [0.000, 0.600, 0.400, -1.000]
+jointPickPose =     [ 0.000,  1.500, -0.500, -0.600]
+jointPlacePoseL =   [ 0.800,  1.400, -0.500, -0.600]
+jointPlacePoseR =   [-0.800,  1.400, -0.500, -0.600]
+jointMovePose =     [ 0.000,  0.600,  0.400, -1.000]
+
+jointInitPose =     [ 0.000,  0.000,  0.000,  0.000]
+jointTuckPose =     [ 0.000, -1.700,  1.200,  0.700]
 
 ##### TASK SPACE POSE SETUP #####
 
@@ -66,7 +69,7 @@ def moveToJointPose(pose):
 
     # if any of the joints require movement then plan a move, else do nothing
     if sameJoints < len(joint_angles):
-        print("moving to new pose...")
+        print(f"moving to new pose: {pose}")
 
         arm_group.go(pose, wait=True)
         arm_group.stop()
@@ -140,6 +143,8 @@ def resetArm():
     else:
         moveToTaskPose(taskTuckPose)
 
+    openGripper()
+
     
 
 # method to move the arm to the position where ready to grasp an object
@@ -163,7 +168,7 @@ def openGripper():
 # so that the arm is as close to the ground as possible, preventing damage to the robot or the arm 
 # should the arm experience a loss of torque and fall.
 def shutDownCallback():
-    positionArm()
+    arm_group.go(jointTuckPose, wait=True)
     print("shutting down...")
 
 def main():
@@ -178,25 +183,28 @@ def main():
     # used to keep track of the number of loops
     counter = 0
 
+    # set the arm to the initial pose
+    arm_group.go(jointInitPose, wait=True)
+
     # set initial state to jointMovePose
     resetArm()
-
+    
     ### main loop ###
     while not rospy.is_shutdown():
-
-        if counter % 1000 == 0:
+        # loops through each state every 8 seconds
+        if counter % 800 == 0:
             positionArm()
 
-        if counter % 1000 == 200:
+        if counter % 800 == 200:
             pickObject()
 
-        if counter % 1000 == 400:
-            if counter % 2000 < 1000:
+        if counter % 800 == 400:
+            if counter % 1600 < 800:
                 placeObject("left")
             else:
                 placeObject("right")
         
-        if counter % 1000 == 600:
+        if counter % 800 == 600:
             resetArm()
         
         counter += 1
