@@ -178,6 +178,7 @@ def openGripper():
 # should the arm experience a loss of torque and fall.
 def shutDownCallback():
     arm_group.go(jointTuckPose, wait=True)
+    arm_group.stop()
     print("shutting down...")
 
 def main():
