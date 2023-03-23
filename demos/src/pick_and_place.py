@@ -43,11 +43,15 @@ jointTuckPose =     [ 0.000, -1.700,  1.200,  0.700]
 
 ##### TASK SPACE POSE SETUP #####
 
-taskTuckPose = [0.080, 0.000, 0.350, 0.000]
-taskPickPose = [0.300, 0.000, 0.040, 0.000]
-taskMovePose = [0.300, 0.000, 0.200, 0.000]
+taskPickPose =      [0.310,  0.000, 0.060]
+taskPlacePoseL =    [0.220,  0.225, 0.050]
+taskPlacePoseR =    [0.220, -0.225, 0.050]
+taskMovePose =      [0.300,  0.000, 0.200]
 
-# used to visualise pahs with rviz
+taskInitPose =      [0.275, 0.000, 0.350, 1.200]
+taskTuckPose =      [0.100, 0.000, 0.260]
+
+# used to visualise path with rviz
 display_trajectory_publisher = rospy.Publisher(
     "arm_group/display_planned_path",
     moveit_msgs.msg.DisplayTrajectory,
@@ -69,7 +73,7 @@ def moveToJointPose(pose):
 
     # if any of the joints require movement then plan a move, else do nothing
     if sameJoints < len(joint_angles):
-        print(f"moving to new pose: {pose}")
+        print(f"moving to new joint pose: {pose}")
 
         arm_group.go(pose, wait=True)
         arm_group.stop()
@@ -78,12 +82,11 @@ def moveToJointPose(pose):
 
 # method that sends a pose goal to the move group and executes a planned move
 def moveToTaskPose(pose):
-    arm_group.clear_pose_targets()
     # gets the current task space position (x,y,z,w) - w = orientation of the end effector
     pose_goal = geometry_msgs.msg.Pose()
 
     # updates the pose_goal to the given pose 
-    print(f"{pose[0]}, {pose[1]}, {pose[2]}")
+
     pose_goal.position.x = pose[0]
     pose_goal.position.y = pose[1]
     pose_goal.position.z = pose[2]
@@ -91,10 +94,13 @@ def moveToTaskPose(pose):
     # only adds the orientation to the plan if specified by the parameter
     if len(pose) > 3:
         pose_goal.orientation.w = pose[3]
+    else:
+        pose_goal.orientation.w = 1.000
 
     # updates the arm_group pose target
     arm_group.set_pose_target(pose_goal)
 
+    print(f"moving to new task pose: {pose}")
     # executes the planned move
     success = arm_group.go(wait=True)
 
@@ -102,10 +108,8 @@ def moveToTaskPose(pose):
     # clear prevents the move group from unnecessarily planning to the current pose
     arm_group.stop()
     arm_group.clear_pose_targets()
-    rospy.sleep(0.75)
 
-
-# method to move the arm to jointPickPose and close the gripper
+# method to move the arm to pick up an object
 def pickObject():
     print("Picking up object")
 
@@ -116,19 +120,22 @@ def pickObject():
     else:
         moveToTaskPose(taskMovePose)
 
-
-# method to move the arm to jointPlacePoseL  and open the gripper
+# method to move the arm to place an object in a specified position
 def placeObject(direction):
 
     if direction == "left":
         print("Placing object on the " + direction)
         if JOINT_PLANNING:
             moveToJointPose(jointPlacePoseL)
+        else:
+            moveToTaskPose(taskPlacePoseL)
 
     elif direction == "right":
         print("Placing object on the " + direction)
         if JOINT_PLANNING:
             moveToJointPose(jointPlacePoseR)
+        else:
+            moveToTaskPose(taskPlacePoseR)
 
     else:
         print(direction + " invalid. Must give direction: 'left'/'right'")
@@ -136,16 +143,18 @@ def placeObject(direction):
 
     openGripper()
 
-# method to move the arm to jointMovePose - default state
+# method to move the arm to a default state
 def resetArm():
     if JOINT_PLANNING:
         moveToJointPose(jointMovePose)
     else:
-        moveToTaskPose(taskTuckPose)
+        moveToTaskPose(taskMovePose)
 
     openGripper()
 
-    
+# method to move the arm to the initial position
+def InitArm():
+    moveToJointPose(jointInitPose)
 
 # method to move the arm to the position where ready to grasp an object
 def positionArm():
@@ -184,8 +193,7 @@ def main():
     counter = 0
 
     # set the arm to the initial pose
-    arm_group.go(jointInitPose, wait=True)
-
+    InitArm()
     # set initial state to jointMovePose
     resetArm()
     
