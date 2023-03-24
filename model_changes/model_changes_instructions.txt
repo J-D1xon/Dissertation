@@ -20,7 +20,7 @@ with the file of the same name in model_changes.
 -------------------------------------------
 
 ---------- CHANGES TO TURTLEBOT3_MANIPULATION SUBMODULE ----------
-Replace the contents of 'turtlebot3_manipulation/turtlebot3_manipulation_description/urdf/turtlebot3_mnpulation_robot.urdf.xacro' 
+Replace the contents of 'turtlebot3_manipulation/turtlebot3_manipulation_description/urdf/turtlebot3_manpulation_robot.urdf.xacro' 
 with the file of the same name in model_changes.
 
 If, while running the simulation, you encounter a warning about missing collision geometry, then you need to make an
