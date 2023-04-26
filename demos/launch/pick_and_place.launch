@@ -2,9 +2,9 @@
  
     <!-- <include file="$(find turtlebot3_manipulation_moveit_config)/launch/move_group.launch"></include> -->
 
-    <include file="$(find open_manipulator_controller)/launch/open_manipulator_controller.launch">
+    <!-- <include file="$(find open_manipulator_controller)/launch/open_manipulator_controller.launch">
         <arg name="use_platform" value="false" />
-    </include>
+    </include> -->
 
     <node pkg="demos" type="pick_and_place.py" name="pick_and_place" output="screen" respawn="true"></node>
 </launch>
