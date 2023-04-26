@@ -30,6 +30,6 @@
   <include file="$(find turtlebot3_manipulation_gazebo)/launch/turtlebot3_manipulation_controller.launch"/>
 
   <!-- run slam -->
-  <include file="$(find turtlebot3_manipulation_slam)/launch/slam.launch"/>
+  <include file="$(find turtlebot3_manipulation_slam)/launch/slam.launch" />
 
 </launch>
