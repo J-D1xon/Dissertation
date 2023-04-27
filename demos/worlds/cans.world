@@ -87,7 +87,7 @@
       <elevation>0</elevation>
       <heading_deg>0</heading_deg>
     </spherical_coordinates>
-    <model name='robot'>
+    <!-- <model name='robot'>
       <link name='base_footprint'>
         <inertial>
           <pose>-0.002523 0 0.023365 0 -0 0</pose>
@@ -1054,7 +1054,7 @@
         <robotNamespace>/</robotNamespace>
       </plugin>
       <pose>0 0 0 0 -0 0</pose>
-    </model>
+    </model> -->
     <state world_name='default'>
       <sim_time>2 571000000</sim_time>
       <real_time>2 574205012</real_time>
@@ -1080,7 +1080,7 @@
           <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
-      <model name='robot'>
+      <!-- <model name='robot'>
         <pose>-0.000266 -8.3e-05 -0.0004 -0.003433 0.001389 -0.000244</pose>
         <scale>1 1 1</scale>
         <link name='base_footprint'>
@@ -1137,7 +1137,7 @@
           <acceleration>-2.17601 0.104346 1.98727 -0.91257 -1.31291 2.42993</acceleration>
           <wrench>-0.062014 0.002974 0.056635 0 -0 0</wrench>
         </link>
-      </model>
+      </model> -->
       <light name='sun'>
         <pose>0 0 10 0 -0 0</pose>
       </light>

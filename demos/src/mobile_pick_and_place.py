@@ -152,12 +152,12 @@ class MobilePicker:
                 self.angularAligned = True
 
 
-            if self.can_coverage() < 0.20:
+            if self.can_coverage() < 0.22:
                     print("moving forward")
                     self.vel.linear.x = 0.02
                     self.linearAligned = False
 
-            elif self.can_coverage() > 0.20:
+            elif self.can_coverage() > 0.22:
                 print("backing up")
                 self.vel.linear.x = -0.02
                 self.linearAligned = False
