@@ -3,6 +3,7 @@
 ##### IMPORTS #####
 import rospy
 import numpy as np
+import math
 import moveit_commander
 import moveit_msgs.msg
 import geometry_msgs.msg
@@ -21,6 +22,8 @@ from cv_bridge import CvBridge, CvBridgeError
 
 from moveit_commander.conversions import pose_to_list
 from open_manipulator_msgs.srv import *
+
+from tf.transformations import euler_from_quaternion
 
 ##### MOVEIT! SETUP #####
 
@@ -42,6 +45,16 @@ INIT_POSE = [ 0.000,  0.000,  0.000,  0.000]
 TUCK_POSE = [ 0.000, -1.700,  1.200,  0.700]
 PICK_POSE = [ 0.000,  1.500, -0.500, -0.750]
 
+# method to move the gripper arms to the closed position
+def close_gripper():
+    gripper_group.go([-0.01, -0.01], wait=True)
+    gripper_group.stop()
+
+# method to move the gripper arms to the open position
+def open_gripper():
+    gripper_group.go([0.01, 0.01], wait=True)
+    gripper_group.stop()
+
 class MobilePicker:
 
     def shutDownCallback(self):
@@ -56,42 +69,67 @@ class MobilePicker:
         gripper_group.go([-0.01, -0.01], wait=True)
         gripper_group.stop()
 
-
     # callback function is triggered when a new frame is available
     # it manipulates the frame and returns the average position of cans in the frame
     def cam_callback(self, img_data):
-        
-        # converst the image data to a cv image for manipulation
-        try:
-            cv_img = self.cvbridge_interface.imgmsg_to_cv2(img_data, desired_encoding="bgr8")
-        except CvBridgeError as e:
-            print(e)
+        # only process a new fram when its needed for tracking
+        if self.MODE == 1:
+            # converst the image data to a cv image for manipulation
+            try:
+                cv_img = self.cvbridge_interface.imgmsg_to_cv2(img_data, desired_encoding="bgr8")
+            except CvBridgeError as e:
+                print(e)
 
-        # gets the height and width for cropping to reduce image size
-        height, width, _ = cv_img.shape
+            # gets the height and width for cropping to reduce image size
+            height, width, _ = cv_img.shape
 
-        # crops the image to half its original size
-        cropped_img = cv_img[int(height/2):height, 0:width]
+            # crops the image to half its original size
+            cropped_img = cv_img[int(height/2):height, 0:width]
 
-        # converts the image to greyscale to make the cans stand out more
-        greyscale = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2GRAY)
-        upper, lower = 60, 0
+            # converts the image to greyscale to make the cans stand out more
+            greyscale = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2GRAY)
+            upper, lower = 60, 0
 
-        # masks out the cans based on an upper and lower threshold
-        self.mask = cv2.inRange(greyscale, lower, upper)
+            # masks out the cans based on an upper and lower threshold
+            self.mask = cv2.inRange(greyscale, lower, upper)
 
-        # print(f"{np.amax(mask)}, {np.amin(mask)}")
+            # print(f"{np.amax(mask)}, {np.amin(mask)}")
 
-        # returns the average position of a can along the width of the image
-        if len(np.nonzero(self.mask)[1]) > 0:
-            self.avg_mask = np.average(np.nonzero(self.mask)[1])
-        else:
-            self.avg_mask = -1
-        #print(self.avg_mask)
-        self.newFrame = True
+            # returns the average position of a can along the width of the image
+            if len(np.nonzero(self.mask)[1]) > 0:
+                self.avg_mask = np.average(np.nonzero(self.mask)[1])
+            else:
+                self.avg_mask = -1
+            #print(self.avg_mask)
+            self.newFrame = True
 
     # def depth_callback(self, depth_data):
     #     pass
+
+    def odom_callback(self, odom_data):
+        or_x = odom_data.pose.pose.orientation.x
+        or_y = odom_data.pose.pose.orientation.y
+        or_z = odom_data.pose.pose.orientation.z
+        or_w = odom_data.pose.pose.orientation.w
+
+        pos_x = odom_data.pose.pose.position.x
+        pos_y = odom_data.pose.pose.position.y
+
+        # convert orientation co-ords to roll, pitch & yaw (theta_x, theta_y, theta_z):
+        (_, _, yaw) = euler_from_quaternion([or_x, or_y, or_z, or_w], 'sxyz')
+        
+        self.x = round(pos_x, 2)
+        self.y = round(pos_y, 2)
+        self.theta_z = round(yaw, 2) 
+
+        if self.startup:
+            self.startup = False
+
+            self.x0 = self.x
+            self.y0 = self.y
+            self.theta_z0 = self.theta_z
+
+            self.place_target = self.x0 - 0.25
 
     def can_coverage(self):
         return round(np.count_nonzero(self.mask) / (len(self.mask) * len(self.mask[1])), 2)
@@ -144,11 +182,113 @@ class MobilePicker:
 
         self.cmd_vel.publish(self.vel)
 
+    def pick_can(self):
+        arm_group.go(INIT_POSE,wait=True)
+        arm_group.stop()
+
+        open_gripper()
+
+        scene.attach_box(eef_link,can_name,touch_links=touch_links)
+
+        arm_group.go(PICK_POSE,wait=True)
+        arm_group.stop()
+
+        close_gripper()
+
+        arm_group.go(INIT_POSE,wait=True)
+        arm_group.stop()
+
+        self.MODE = 3
+        self.angularAligned = False
+
+    def return_to_origin(self):
+        # if more than 10cm from the origin, calculate a new heading 
+        in_origin_zone = False
+        if (self.x-(self.place_target))**2 + (self.y-self.y0)**2 > 0.1**2:
+            self.calculate_heading(self.place_target, self.y0)
+        else:
+            print("within 10cm of (x0, y0)")
+
+        print(f"{self.x}:{self.x0}, {self.y}:{self.y0} | {self.theta_z}:{self.target_heading}")
+        
+        # add angular velocity if not on the heading
+        if self.target_heading - 0.01 > self.theta_z:
+            self.vel.angular.z = 0.1
+            # self.angularAligned = False
+        elif self.target_heading + 0.01 < self.theta_z:
+            self.vel.angular.z = -0.1
+            # self.angularAligned = False
+        else:
+            self.vel.angular.z = 0
+            self.angularAligned = True
+        
+        # add linear velocity if aligned and not at the origin
+        if not self.at_origin(self.place_target, self.y0):
+            if self.angularAligned:
+                self.vel.linear.x = 0.1
+            else:
+                self.vel.linear.x = 0
+        else:
+            print("At the origin")
+            self.vel.linear.x = 0
+            self.angularAligned = False
+
+            print("switching to MODE 4 - reorient and place")
+            self.MODE = 4
+
+        self.cmd_vel.publish(self.vel)
+
+    def at_origin(self, x, y):
+        x_threshold = (self.x < x + 0.02) and (self.x > x - 0.02)
+        y_threshold = (self.y < y + 0.02) and (self.y > y - 0.02)
+
+        return x_threshold and y_threshold
+
+    def calculate_heading(self, x, y):
+        self.target_heading = round(-math.pi + math.atan2(self.y-y, self.x-x), 2)
+
+        if self.target_heading < -math.pi:
+            self.target_heading = round(math.pi - (abs(self.target_heading) - math.pi), 2)
+
+    def reorient_and_place(self):
+        if not self.angularAligned:
+            print(f"Aligning: {self.theta_z}")
+
+            if self.theta_z < round(math.pi, 2) and self.theta_z > 0:
+                self.vel.angular.z = 0.05
+            elif self.theta_z > -round(math.pi, 2) and self.theta_z < 0:
+                self.vel.angular.z = -0.05
+            else:
+                self.angularAligned = True
+                self.vel.angular.z = 0
+                print("Aligned, placing can")
+
+            self.cmd_vel.publish(self.vel)
+
+        else:
+        
+            arm_group.go(PICK_POSE, wait=True)
+            arm_group.stop()
+
+            open_gripper()
+
+            arm_group.go(INIT_POSE, wait=True)
+            arm_group.go(TUCK_POSE, wait=True)
+            arm_group.stop()
+
+            close_gripper()
+
+            print("Placed object")
+            self.angularAligned = False
+            print("switching to MODE 1 - tracking")
+            self.MODE = 1
+
     def __init__(self):
         self.rate = rospy.Rate(5) #Hz
         rospy.on_shutdown(self.shutDownCallback)
+        self.startup = True
 
-        self.MODE = 1 # 1 - track towards | 2 - pick up | 3 - take back to spawn
+        self.MODE = 4 # 1 - track towards | 2 - pick up | 3 - take back to spawn | 4 - reorient and place 
 
         # setup for computer vision  
         self.cvbridge_interface = CvBridge()
@@ -161,15 +301,27 @@ class MobilePicker:
         self.linearAligned  = False
         self.angularAligned = False
 
+        self.nav_sub = rospy.Subscriber("/odom", Odometry, self.odom_callback, queue_size=1)
         arm_group.go(TUCK_POSE,wait=True)
         arm_group.stop()
+
+        self.x = 0
+        self.y = 0
+        self.x0 = 0
+        self.y0 = 0
+        self.theta_z = 0
+        self.theta_z0 = 0
+
+        self.place_target = 0
+
+        self.target_heading = 0
 
         gripper_group.go([-0.01, -0.01], wait=True)
         gripper_group.stop()
         self.main()
 
     def main(self):
-        print("switching to MODE 1 - tracking")
+        print(f"starting in MODE {self.MODE}")
         while not rospy.is_shutdown():
 
             if self.MODE == 1:
@@ -179,22 +331,13 @@ class MobilePicker:
                     self.check_for_base_move()
 
             elif self.MODE == 2:
-                arm_group.go(INIT_POSE,wait=True)
-                arm_group.stop()
-                gripper_group.go([0.01, 0.01], wait=True)
-                gripper_group.stop()
+                self.pick_can()
 
-                scene.attach_box(eef_link,can_name,touch_links=touch_links)
-                arm_group.go(PICK_POSE,wait=True)
-                arm_group.stop()
+            elif self.MODE == 3:
+                self.return_to_origin()
 
-                gripper_group.go([-0.01, -0.01], wait=True)
-                gripper_group.stop()
-
-                arm_group.go(INIT_POSE,wait=True)
-                arm_group.stop()
-
-                self.MODE = 3
+            elif self.MODE == 4:
+                self.reorient_and_place()
 
                     
             self.rate.sleep()
