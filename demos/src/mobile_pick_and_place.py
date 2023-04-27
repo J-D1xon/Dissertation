@@ -55,6 +55,28 @@ def open_gripper():
     gripper_group.go([0.01, 0.01], wait=True)
     gripper_group.stop()
 
+# method that sends a joint goal to the move_group and executes a planned move if not already at the goal
+def move_to_pose(pose):
+    # store the current joint angles
+    joint_angles = arm_group.get_current_joint_values() 
+
+    # used to keep track of joints that don't need to move
+    sameJoints = 0
+
+    for i in range(len(joint_angles)):
+        # recognises a joint is already at the pose angle if its within a threshold 'eps' of the target pose (0.005 rad)
+        if joint_angles[i]-0.005 < pose[i] and joint_angles[i]+0.005 > pose[i]:
+            sameJoints += 1
+
+    # if any of the joints require movement then plan a move, else do nothing
+    if sameJoints < len(joint_angles):
+        print(f"moving to new joint pose: {pose}")
+
+        arm_group.go(pose, wait=True)
+        arm_group.stop()
+    else:
+        print("already at the given pose")
+
 class MobilePicker:
 
     def shutDownCallback(self):
@@ -63,11 +85,9 @@ class MobilePicker:
         self.vel.angular.z = 0
         self.cmd_vel.publish(self.vel)
 
-        arm_group.go(INIT_POSE,wait=True)
-        arm_group.go(TUCK_POSE,wait=True)
-        arm_group.stop()
-        gripper_group.go([-0.01, -0.01], wait=True)
-        gripper_group.stop()
+        move_to_pose(INIT_POSE)
+        move_to_pose(TUCK_POSE)
+        close_gripper()
 
     # callback function is triggered when a new frame is available
     # it manipulates the frame and returns the average position of cans in the frame
@@ -103,9 +123,8 @@ class MobilePicker:
             #print(self.avg_mask)
             self.newFrame = True
 
-    # def depth_callback(self, depth_data):
-    #     pass
-
+    # callback function is triggered when a new odometry measurment is available
+    # it provides positional data using dead-reckoning 
     def odom_callback(self, odom_data):
         or_x = odom_data.pose.pose.orientation.x
         or_y = odom_data.pose.pose.orientation.y
@@ -131,19 +150,35 @@ class MobilePicker:
 
             self.place_target = self.x0 - 0.25
 
+    # calculates the percentage of the frame taken up by masked objects
     def can_coverage(self):
         return round(np.count_nonzero(self.mask) / (len(self.mask) * len(self.mask[1])), 2)
 
+    # returns true when the robot is within 2cm from point (x, y) 
+    def at_origin(self, x, y):
+        x_threshold = (self.x < x + 0.02) and (self.x > x - 0.02)
+        y_threshold = (self.y < y + 0.02) and (self.y > y - 0.02)
+
+        return x_threshold and y_threshold
+
+    # calculates the heading required to move in a straight line from the robot's position to (x, y)
+    def calculate_heading(self, x, y):
+        self.target_heading = round(-math.pi + math.atan2(self.y-y, self.x-x), 2)
+
+        if self.target_heading < -math.pi:
+            self.target_heading = round(math.pi - (abs(self.target_heading) - math.pi), 2)
+
+    # MODE 1
     def check_for_base_move(self):
         if self.avg_mask > 0:
-            if self.avg_mask < 330:
+            if self.avg_mask < 335:
                 print("turning left")
-                self.vel.angular.z = 0.05
+                self.vel.angular.z = self.FAST
                 self.angularAligned = False
 
             elif self.avg_mask > 340:
                 print("turning right")
-                self.vel.angular.z = -0.05
+                self.vel.angular.z = -self.FAST
                 self.angularAligned = False
 
             else:
@@ -152,14 +187,18 @@ class MobilePicker:
                 self.angularAligned = True
 
 
-            if self.can_coverage() < 0.22:
-                    print("moving forward")
-                    self.vel.linear.x = 0.02
-                    self.linearAligned = False
+            if self.can_coverage() < 0.15:
+                print("moving forward quickly")
+                self.vel.linear.x = self.FAST
+                self.linearAligned = False
+            elif self.can_coverage() < 0.22:
+                print("moving forward slowly")
+                self.vel.linear.x = self.SLOW
+                self.linearAligned = False
 
             elif self.can_coverage() > 0.22:
                 print("backing up")
-                self.vel.linear.x = -0.02
+                self.vel.linear.x = -self.SLOW
                 self.linearAligned = False
 
             else:
@@ -182,29 +221,29 @@ class MobilePicker:
 
         self.cmd_vel.publish(self.vel)
 
+    # MODE 2
     def pick_can(self):
-        arm_group.go(INIT_POSE,wait=True)
-        arm_group.stop()
+        move_to_pose(INIT_POSE)
 
         open_gripper()
 
         scene.attach_box(eef_link,can_name,touch_links=touch_links)
 
-        arm_group.go(PICK_POSE,wait=True)
-        arm_group.stop()
+        move_to_pose(PICK_POSE)
 
         close_gripper()
 
-        arm_group.go(INIT_POSE,wait=True)
-        arm_group.stop()
+        move_to_pose(INIT_POSE)
+
+        ## add a check to confirm grasp
 
         self.MODE = 3
         self.angularAligned = False
 
+    # MODE 3
     def return_to_origin(self):
         # if more than 10cm from the origin, calculate a new heading 
-        in_origin_zone = False
-        if (self.x-(self.place_target))**2 + (self.y-self.y0)**2 > 0.1**2:
+        if ((self.x-(self.place_target))**2 + (self.y-self.y0)**2) > 0.1**2:
             self.calculate_heading(self.place_target, self.y0)
         else:
             print("within 10cm of (x0, y0)")
@@ -213,10 +252,10 @@ class MobilePicker:
         
         # add angular velocity if not on the heading
         if self.target_heading - 0.01 > self.theta_z:
-            self.vel.angular.z = 0.1
+            self.vel.angular.z = self.FAST
             # self.angularAligned = False
         elif self.target_heading + 0.01 < self.theta_z:
-            self.vel.angular.z = -0.1
+            self.vel.angular.z = -self.FAST
             # self.angularAligned = False
         else:
             self.vel.angular.z = 0
@@ -225,7 +264,7 @@ class MobilePicker:
         # add linear velocity if aligned and not at the origin
         if not self.at_origin(self.place_target, self.y0):
             if self.angularAligned:
-                self.vel.linear.x = 0.1
+                self.vel.linear.x = self.FAST
             else:
                 self.vel.linear.x = 0
         else:
@@ -238,26 +277,15 @@ class MobilePicker:
 
         self.cmd_vel.publish(self.vel)
 
-    def at_origin(self, x, y):
-        x_threshold = (self.x < x + 0.02) and (self.x > x - 0.02)
-        y_threshold = (self.y < y + 0.02) and (self.y > y - 0.02)
-
-        return x_threshold and y_threshold
-
-    def calculate_heading(self, x, y):
-        self.target_heading = round(-math.pi + math.atan2(self.y-y, self.x-x), 2)
-
-        if self.target_heading < -math.pi:
-            self.target_heading = round(math.pi - (abs(self.target_heading) - math.pi), 2)
-
+    #MODE 4
     def reorient_and_place(self):
         if not self.angularAligned:
             print(f"Aligning: {self.theta_z}")
 
             if self.theta_z < round(math.pi, 2) and self.theta_z > 0:
-                self.vel.angular.z = 0.05
+                self.vel.angular.z = self.SLOW
             elif self.theta_z > -round(math.pi, 2) and self.theta_z < 0:
-                self.vel.angular.z = -0.05
+                self.vel.angular.z = -self.SLOW
             else:
                 self.angularAligned = True
                 self.vel.angular.z = 0
@@ -267,14 +295,12 @@ class MobilePicker:
 
         else:
         
-            arm_group.go(PICK_POSE, wait=True)
-            arm_group.stop()
+            move_to_pose(PICK_POSE)
 
             open_gripper()
 
-            arm_group.go(INIT_POSE, wait=True)
-            arm_group.go(TUCK_POSE, wait=True)
-            arm_group.stop()
+            move_to_pose(INIT_POSE)
+            move_to_pose(TUCK_POSE)
 
             close_gripper()
 
@@ -288,16 +314,19 @@ class MobilePicker:
         rospy.on_shutdown(self.shutDownCallback)
         self.startup = True
 
-        self.MODE = 4 # 1 - track towards | 2 - pick up | 3 - take back to spawn | 4 - reorient and place 
+        self.MODE = 1 # 1 - track towards | 2 - pick up | 3 - take back to spawn | 4 - reorient and place 
 
         # setup for computer vision  
         self.cvbridge_interface = CvBridge()
         self.newFrame = False
+        self.range = 0.21
         self.cam_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.cam_callback, queue_size=1)
         #self.depth_sub = rospy.Subscriber("/camera/rgb/image__raw/compressedDepth", CompressedImage, self.depth_callback, queue_size=1)
 
         self.cmd_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=0)
         self.vel = Twist()
+        self.FAST = 0.1
+        self.SLOW = 0.05
         self.linearAligned  = False
         self.angularAligned = False
 
@@ -316,8 +345,8 @@ class MobilePicker:
 
         self.target_heading = 0
 
-        gripper_group.go([-0.01, -0.01], wait=True)
-        gripper_group.stop()
+        close_gripper()
+
         self.main()
 
     def main(self):
