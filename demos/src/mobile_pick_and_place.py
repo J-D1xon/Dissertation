@@ -43,12 +43,17 @@ can_name = "can1"
 
 INIT_POSE = [ 0.000,  0.000,  0.000,  0.000]
 TUCK_POSE = [ 0.000, -1.700,  1.200,  0.700]
-PICK_POSE = [ 0.000,  1.500, -0.500, -0.750]
+PICK_POSE = [ 0.050,  1.550, -0.500, -0.850]
+
+##### MOVEIT METHODS #####
 
 # method to move the gripper arms to the closed position
 def close_gripper():
     gripper_group.go([-0.01, -0.01], wait=True)
     gripper_group.stop()
+
+def grasp_gripper():
+    gripper_group.go([-0.01, -0.01], wait=True)
 
 # method to move the gripper arms to the open position
 def open_gripper():
@@ -171,15 +176,23 @@ class MobilePicker:
     # MODE 1
     def check_for_base_move(self):
         if self.avg_mask > 0:
-            if self.avg_mask < 335:
-                print("turning left")
+            self.angularAligned = False
+
+            if self.avg_mask < 300:
+                print("turning left quickly")
                 self.vel.angular.z = self.FAST
-                self.angularAligned = False
+                
+            elif self.avg_mask < 340:
+                print("turning left slowly")
+                self.vel.angular.z = self.SLOW
+
+            elif self.avg_mask > 380:
+                print("turning right quickly")
+                self.vel.angular.z = -self.FAST
 
             elif self.avg_mask > 340:
-                print("turning right")
-                self.vel.angular.z = -self.FAST
-                self.angularAligned = False
+                print("turning right slowly")
+                self.vel.angular.z = -self.SLOW
 
             else:
                 print("no turn needed")
@@ -215,6 +228,7 @@ class MobilePicker:
 
         if self.linearAligned and self.angularAligned:
             print("switching to MODE 2 - pick up")
+            print(self.avg_mask)
             self.MODE = 2
             self.linearAligned = False
             self.angularAligned = False
@@ -227,11 +241,11 @@ class MobilePicker:
 
         open_gripper()
 
-        scene.attach_box(eef_link,can_name,touch_links=touch_links)
-
         move_to_pose(PICK_POSE)
 
-        close_gripper()
+        scene.attach_box(eef_link,can_name,touch_links=touch_links)
+
+        grasp_gripper()
 
         move_to_pose(INIT_POSE)
 
@@ -283,9 +297,9 @@ class MobilePicker:
             print(f"Aligning: {self.theta_z}")
 
             if self.theta_z < round(math.pi, 2) and self.theta_z > 0:
-                self.vel.angular.z = self.SLOW
+                self.vel.angular.z = self.FAST
             elif self.theta_z > -round(math.pi, 2) and self.theta_z < 0:
-                self.vel.angular.z = -self.SLOW
+                self.vel.angular.z = -self.FAST
             else:
                 self.angularAligned = True
                 self.vel.angular.z = 0
@@ -306,15 +320,38 @@ class MobilePicker:
 
             print("Placed object")
             self.angularAligned = False
+            print("switching to MODE 5 - resetting")
+            self.repose_pub.publish(self.repose)
+            self.MODE = 5
+
+    # MODE 5
+    def reset_robot(self):
+        if not self.angularAligned:
+            print(f"Aligning: {self.theta_z}")
+
+            if self.theta_z < 0:
+                self.vel.angular.z = self.FAST
+            elif self.theta_z > 0:
+                self.vel.angular.z = -self.FAST
+            else:
+                self.angularAligned = True
+                self.vel.angular.z = 0
+
+            self.cmd_vel.publish(self.vel)
+
+        else:
+            print("Reset to start")
+            self.angularAligned = False
             print("switching to MODE 1 - tracking")
             self.MODE = 1
+
 
     def __init__(self):
         self.rate = rospy.Rate(5) #Hz
         rospy.on_shutdown(self.shutDownCallback)
         self.startup = True
 
-        self.MODE = 1 # 1 - track towards | 2 - pick up | 3 - take back to spawn | 4 - reorient and place 
+        self.MODE = 5 # 1 - track towards | 2 - pick up | 3 - take back to spawn | 4 - reorient and place | 5 - reset
 
         # setup for computer vision  
         self.cvbridge_interface = CvBridge()
@@ -326,7 +363,7 @@ class MobilePicker:
         self.cmd_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=0)
         self.vel = Twist()
         self.FAST = 0.1
-        self.SLOW = 0.05
+        self.SLOW = 0.025
         self.linearAligned  = False
         self.angularAligned = False
 
@@ -340,6 +377,10 @@ class MobilePicker:
         self.y0 = 0
         self.theta_z = 0
         self.theta_z0 = 0
+
+        self.repose_pub = rospy.Publisher("/repose_can", String, queue_size=0)
+        self.repose = String()
+        self.repose = "repose"
 
         self.place_target = 0
 
@@ -367,6 +408,9 @@ class MobilePicker:
 
             elif self.MODE == 4:
                 self.reorient_and_place()
+
+            elif self.MODE == 5:
+                self.reset_robot()
 
                     
             self.rate.sleep()

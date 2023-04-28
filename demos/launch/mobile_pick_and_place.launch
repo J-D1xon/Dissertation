@@ -1,3 +1,5 @@
 <launch>
-    <node pkg="demos" type="mobile_pick_and_place.py" name="mobile_pick_and_place" output="screen" respawn="true"></node>
+    <node pkg="demos" type="mobile_pick_and_place.py" name="mobile_pick_and_place" output="screen" respawn="true" />
+
+    <node pkg="demos" type="object_controller.py" name="object_controller" output="screen"  respawn="true" />
 </launch>
