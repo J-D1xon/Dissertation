@@ -1,5 +1,5 @@
 # Dissertation
-
+(tested in Linux Ubuntu 20.04) 
 ## Installation
 
 This repository contains Git Submodules which, upon cloning, creates empty package folders. These are submodules linking to [ROBOTIS-GIT](https://github.com/ROBOTIS-GIT).
