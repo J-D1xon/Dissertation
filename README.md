@@ -41,3 +41,22 @@ with the file of the same name in the **model_changes** folder.
 Replace the contents of ***turtlebot3_manipulation/turtlebot3_manipulation_description/urdf/turtlebot3_manpulation_robot.urdf.xacro***
 with the file of the same name in the **model_changes** folder.
 
+
+### Testing The environment
+First, build the catkin environment with either:
+
+```catkin_make```
+or
+```catkin build```
+
+and make sure the source is correct. This can be done using the source command:
+```source <your catkin workspace>/devel/setup.bash```
+
+Now the environment should be setup correctly, this can be tested by launching the ***sim_testing.launch*** file in the ***demos*** folder.
+
+```roslaunch demos sim_testing.launch```
+
+This will launch and empty Gazebo simulation with the integrated robot and manipulator. It will also launch the ***moveit_config/move_group*** package and the ***turtlebot3_manipulation_gui*** for teleoperation which should both become active once the simulation is started. 
+
+
+
